@@ -1,0 +1,559 @@
+! ******************************************** !
+! JUAS collider a la FCC-ee
+! - Bastian: Dauer ca. 6 h 
+! - All-in-one file
+! - Bisher keine mini-beta
+! ******************************************** !
+option, -echo;
+
+
+ENERGY = 182.5;
+
+value, asin(9.106704893/12);!/twopi;
+value, 0.5-asin(9.106704893/12)/twopi;
+// stop;
+
+
+! ******************************************** !
+! Definition of lengths and number of FDOD cells
+
+    LB = 21;
+    LQ = 1.5;
+    LS = 0.5;
+    Lcell = 50;
+    LDS = 2*Lcell;
+	numberOfArcCells = 400;
+    Larc = numberOfArcCells*Lcell+2*LDS;
+	LMS = 3*Lcell;
+	numberOfStraightCells = 20;
+	LSS = numberOfStraightCells*Lcell+2*LMS;
+	LJC = 4*Larc+4*LSS;
+
+
+
+! ******************************************** !
+! Definition of tunes
+	tuneCellX_arc = 0.252;
+	tuneCellY_arc = 0.251;
+
+	tuneCellX_arc = 0.251;
+	tuneCellY_arc = 0.25;
+
+	tuneXapprox = 4*(numberOfArcCells+4)*tuneCellX_arc+4*(numberOfStraightCells+6)*tuneCellX_arc;
+	tuneYapprox = 4*(numberOfArcCells+4)*tuneCellY_arc+4*(numberOfStraightCells+6)*tuneCellY_arc;
+	value, tuneXapprox, tuneYapprox;
+
+// tuneToBeX = 70.6;
+// tuneToBeY = 70.2;
+
+
+! ******************************************** !
+! Definition of magnetic strengths
+
+	THB := pi/2/(numberOfArcCells + 2)/2;	! 2 bending magnets per cell
+	value, LJC, THB;
+
+    K1QF = 0.036;
+    K1QD =-0.035;
+    K1QFS := K1QF;
+    K1QDS := K1QD;
+    K1QFDS1 := K1QF;
+    K1QDDS1 := K1QD;
+    K1QFDS2 := K1QF;
+    K1QDDS2 := K1QD;
+    K1QFMS1 := K1QFS;
+    K1QDMS1 := K1QDS;
+    K1QFMS2 := K1QFS;
+    K1QDMS2 := K1QDS;
+    // K1QFMS3 := K1QFS;
+    K1QDMS3 := K1QDS;
+
+    K2SF = 0;
+    K2SD = 0;
+
+
+
+! ******************************************** !
+! Definitions of elements
+
+    MB       :  SBEND,      L:=LB,      ANGLE:=THB;
+    MBDS     :  SBEND,      L:=LB,      ANGLE:=THB/2;
+    
+    MQF      :  QUADRUPOLE, L:=LQ/2,    K1:=K1QF;
+    MQD      :  QUADRUPOLE, L:=LQ/2,    K1:=K1QD;
+    MQFS     :  QUADRUPOLE, L:=LQ/2,    K1:=K1QFS;
+    MQDS     :  QUADRUPOLE, L:=LQ/2,    K1:=K1QDS;
+    MQFDS1   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QFDS1;
+    MQDDS1   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QDDS1;
+    MQFDS2   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QFDS2;
+    MQDDS2   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QDDS2;
+    MQFMS1   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QFMS1;
+    MQDMS1   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QDMS1;
+    MQFMS2   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QFMS2;
+    MQDMS2   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QDMS2;
+    // MQFMS3   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QFMS3;
+    MQDMS3   :  QUADRUPOLE, L:=LQ/2,    K1:=K1QDMS3;
+
+    MSF: SEXTUPOLE, L:=LS, K2:=K2SF;
+    MSD: SEXTUPOLE, L:=LS, K2:=K2SD;
+
+	mark_fodos_arc : marker;
+	mark_fodos_ss : marker;
+	mark_endds : marker;
+
+
+
+! ******************************************** !
+! RF SYSTEM
+
+	switch_RF_on = 0;
+	VRF  = 12000;
+	LGRF = 0.5;
+
+! 400 MHz system
+	LCAVcell400         = 0.375;
+	// value, 400e6/(clight/86000);
+	harmonic400         = 114746;
+	numberOfCav400      = 160;
+	numberOfCellsCav400 = 4;
+	Vcell400           := VRF/numberOfCav400/numberOfCellsCav400 * switch_RF_on;       ! = 3.67647058824 MHz
+	LGRF400            := cos(switch_RF_on*0.5*pi)*0.5 + sin(switch_RF_on*0.5*pi)*LGRF;   ! = 0.5, if RF switched off, and LGRF, if RF switched on
+
+	CAVcell400  :  RFCAVITY,   L:=LCAVcell400,    VOLT:=Vcell400,  HARMON:=harmonic400, LAG:=LGRF400;
+
+CavModule : SEQUENCE, refer=centre, L=numberOfCellsCav400+0.5*(numberOfCellsCav400-1)*LCAVcell400;
+	CAVcell400, at=0.5*LCAVcell400;
+	CAVcell400, at=2.0*LCAVcell400;
+	CAVcell400, at=3.5*LCAVcell400;
+	CAVcell400, at=5.0*LCAVcell400;
+ENDSEQUENCE;
+
+// stop;
+
+
+! ******************************************** !
+! Sequence definitions
+
+JC_fodo_a : SEQUENCE, REFER=centre, L=Lcell;
+    MQF, at=0.5*LQ/2;
+    MSF, at=0.5*LQ+0.25+0.5*LS;
+    MB,  at=0.25*Lcell;
+    MQD, at=0.5*Lcell-0.5*LQ/2;
+    MQD, at=0.5*Lcell+0.5*LQ/2;
+    MSD, at=0.5*Lcell+0.5*LQ+0.25+0.5*LS;
+    MB,  at=0.75*Lcell;
+    MQF, at=Lcell-0.5*LQ/2;
+ENDSEQUENCE;
+
+JC_dsl : SEQUENCE, REFER=centre, L=LDS;
+    MQFDS2, at=0.5*LQ/2;
+    MBDS,  at=0.25*Lcell;
+    MQDDS2, at=0.5*Lcell-0.5*LQ/2;
+    MQDDS2, at=0.5*Lcell+0.5*LQ/2;
+    MBDS,  at=0.75*Lcell;
+    MQFDS1, at=Lcell-0.5*LQ/2;
+    
+    MQFDS1, at=Lcell+0.5*LQ/2;
+    MBDS,  at=1.25*Lcell;
+    MQDDS1, at=1.5*Lcell-0.5*LQ/2;
+    MQDDS1, at=1.5*Lcell+0.5*LQ/2;
+    MBDS,  at=1.75*Lcell;
+    MQF, at=2*Lcell-0.5*LQ/2;
+ENDSEQUENCE;
+
+JC_dsr : SEQUENCE, REFER=centre, L=LDS;
+    MQF, at=0.5*LQ/2;
+    MBDS,  at=0.25*Lcell;
+    MQDDS1, at=0.5*Lcell-0.5*LQ/2;
+    MQDDS1, at=0.5*Lcell+0.5*LQ/2;
+    MBDS,  at=0.75*Lcell;
+    MQFDS1, at=Lcell-0.5*LQ/2;
+    
+    MQFDS1, at=Lcell+0.5*LQ/2;
+    MBDS,  at=1.25*Lcell;
+    MQDDS2, at=1.5*Lcell-0.5*LQ/2;
+    MQDDS2, at=1.5*Lcell+0.5*LQ/2;
+    MBDS,  at=1.75*Lcell;
+    MQFDS2, at=2*Lcell-0.5*LQ/2;
+ENDSEQUENCE;
+
+option, -info;
+i=0;
+JC_arc : SEQUENCE, refer=centre, L=Larc; 
+    JC_dsl, at = LDS/2;
+    while (i<numberOfArcCells)	{
+        JC_fodo_a,  at = LDS + (i+0.5)*Lcell;
+        i=i+1;
+    }
+    JC_dsr, at =numberOfArcCells*Lcell+1.5*LDS;
+ENDSEQUENCE;
+option, info;
+
+
+JC_fodo_s : SEQUENCE, REFER=centre, L=Lcell;
+    MQFS, at=0.5*LQ/2;
+    CavModule, at = 0.25*Lcell;
+    MQDS, at=0.5*Lcell-0.5*LQ/2;
+    MQDS, at=0.5*Lcell+0.5*LQ/2;
+    CavModule, at=0.75*Lcell;
+    MQFS, at=Lcell-0.5*LQ/2;
+ENDSEQUENCE;
+
+JC_msl : SEQUENCE, REFER=centre, L=LMS;
+    MQFDS2, at=0.5*LQ/2;
+    MQDMS3, at=0.5*Lcell-0.5*LQ/2;
+    MQDMS3, at=0.5*Lcell+0.5*LQ/2;
+    MQFMS2, at=Lcell-0.5*LQ/2;
+    
+    MQFMS2, at=Lcell+0.5*LQ/2;
+    MQDMS2, at=1.5*Lcell-0.5*LQ/2;
+    MQDMS2, at=1.5*Lcell+0.5*LQ/2;
+    MQFMS1, at=2*Lcell-0.5*LQ/2;
+    
+    MQFMS1, at=2*Lcell+0.5*LQ/2;
+    MQDMS1, at=2.5*Lcell-0.5*LQ/2;
+    MQDMS1, at=2.5*Lcell+0.5*LQ/2;
+    MQFS, at=3*Lcell-0.5*LQ/2;
+ENDSEQUENCE;
+
+JC_msr : SEQUENCE, REFER=centre, L=LMS;
+    MQFS, at=0.5*LQ/2;
+    MQDMS1, at=0.5*Lcell-0.5*LQ/2;
+    MQDMS1, at=0.5*Lcell+0.5*LQ/2;
+    MQFMS1, at=Lcell-0.5*LQ/2;
+    
+    MQFMS1, at=Lcell+0.5*LQ/2;
+    MQDMS2, at=1.5*Lcell-0.5*LQ/2;
+    MQDMS2, at=1.5*Lcell+0.5*LQ/2;
+    MQFMS2, at=2*Lcell-0.5*LQ/2;
+    
+    MQFMS2, at=2*Lcell+0.5*LQ/2;
+    MQDMS3, at=2.5*Lcell-0.5*LQ/2;
+    MQDMS3, at=2.5*Lcell+0.5*LQ/2;
+    MQFDS2, at=3*Lcell-0.5*LQ/2;
+ENDSEQUENCE;
+
+option, -info;
+j=0;
+JC_ss : SEQUENCE, refer=centre, L=LSS; 
+    JC_msl, at = LMS/2;
+    while (j<numberOfStraightCells)	{
+        JC_fodo_s,  at = LMS + (j+0.5)*Lcell;
+        j=j+1;
+    }
+    JC_msr, at =numberOfStraightCells*Lcell+1.5*LMS;
+ENDSEQUENCE;
+option, info;
+
+
+JC_quarter : sequence, refer=centre, L=Larc+Lss;
+	JC_ss, at=0.5*Lss;
+	JC_arc, at = Lss+0.5*Larc;
+ENDSEQUENCE;
+
+
+JC : SEQUENCE, refer=centre, L=LJC;
+	JC_arc, at = 0.5*Larc;
+	JC_ss, at = 1.0*Larc+0.5*Lss;
+	JC_arc, at = 1.5*Larc+Lss;
+	JC_ss, at = 2.0*Larc+1.5*Lss;
+	JC_arc, at = 2.5*Larc+2*Lss;
+	JC_ss, at = 3.0*Larc+2.5*Lss;
+	JC_arc, at = 3.5*Larc+3*LSS;
+	JC_ss, at = 4.0*Larc+3.5*Lss;
+ENDSEQUENCE;
+
+
+
+! ******************************************** !
+! Beam defintion
+
+    beam, particle = electron, energy=ENERGY;
+
+
+
+! ******************************************** !
+! Matching of lattice sections
+
+    use, sequence=JC_fodo_a;
+    twiss;
+
+match, sequence = JC_fodo_a;
+    global, q1=0.252;
+    global, q2=0.251;
+    vary, name=k1qf,  step=1.0E-10 ;  
+    vary, name=k1qd,  step=1.0E-10 ;
+    lmdif,calls=20,tolerance=1.e-15; 
+endmatch;
+
+    savebeta, label=start.fodoa, place=#s;
+    twiss;
+    show, start.fodoa;
+    // plot, haxis=s, vaxis1=betx, bety, vaxis2=dx, colour=100, interpolate, noversion;
+
+match_DS : SEQUENCE, refer=centre, L = 8*Lcell;
+	JC_fodo_a, at = 0.5*Lcell;
+	JC_fodo_a, at = 1.5*Lcell;
+	JC_dsr, at = 3*Lcell;
+	mark_endds, at =4*Lcell;
+	JC_dsl, at = 5*Lcell;
+	JC_fodo_a, at = 6.5*Lcell;
+	JC_fodo_a, at = 7.5*Lcell;
+ENDSEQUENCE;
+
+	use, sequence=match_DS;
+	twiss, beta0=start.fodoa;
+    
+match, sequence= match_DS, beta0=start.fodoa;
+    constraint, range=mark_endds, dx=0,dpx=0;
+    vary, name=k1qfds1, step=1.0E-10;
+    vary, name=k1qdds1, step=1.0E-10;
+    vary, name=k1qfds2, step=1.0E-10;
+    vary, name=k1qdds2, step=1.0E-10;
+    jacobian,calls=20,tolerance=1.e-15,bisec=3;
+endmatch;
+
+	savebeta, label=startss, place=mark_endds;
+	twiss, beta0=start.fodoa;
+    // plot, haxis=s, vaxis1=betx, bety, vaxis2=dx, colour=100, interpolate, noversion;
+
+    use, sequence=JC_fodo_s;
+    twiss;
+
+match, sequence = JC_fodo_s;
+    global, q1=0.251;
+    global, q2=0.25;
+    vary, name=k1qfs,  step=1.0E-10 ;  
+    vary, name=k1qds,  step=1.0E-10 ;
+    lmdif,calls=20,tolerance=1.e-15; 
+endmatch;
+
+    savebeta, label=start.fodos, place=#s;
+    twiss;
+    // plot, haxis=s, vaxis1=betx, bety, vaxis2=dx, colour=100, interpolate, noversion;
+	
+match_MS : sequence, refer=centre, L = 10*Lcell;
+	JC_msl, at = 1.5*Lcell;
+	mark_fodos_ss, at = 3*Lcell;
+	JC_fodo_s, at = 3.5*Lcell;
+	JC_fodo_s, at = 4.5*Lcell;
+	JC_fodo_s, at = 5.5*Lcell;
+	JC_fodo_s, at = 6.5*Lcell;
+	JC_msr, at=8.5*Lcell;
+ENDSEQUENCE;
+
+    use, sequence=match_MS;
+    twiss, beta0=startss;
+    // plot, haxis=s, vaxis1=betx, bety, vaxis2=dx, colour=100, interpolate, noversion;
+
+match, sequence= match_MS, beta0=startss;
+    constraint, range=mark_fodos_ss, betx=start.fodos->betx,bety=start.fodos->bety, alfx=start.fodos->alfx,alfy=start.fodos->alfy;
+    vary, name=k1qfms1, step=1.0E-10;
+    vary, name=k1qdms1, step=1.0E-10;
+    vary, name=k1qfms2, step=1.0E-10;
+    vary, name=k1qdms2, step=1.0E-10;
+    jacobian,calls=20,tolerance=1.e-15,bisec=3;
+endmatch;
+
+    twiss, beta0=startss;
+    plot, haxis=s, vaxis=betx, bety, colour=100, interpolate, noversion;
+
+	use, sequence=JC_quarter;
+	savebeta, label=start.arc, place=#s;
+    twiss;
+    plot, haxis=s, vaxis1=betx, bety, vaxis2=dx, colour=100, interpolate, noversion;
+
+	use, sequence=JC;
+	twiss;
+
+
+
+! ******************************************** !
+! Match tune and chroma
+
+match, sequence = JC;
+    global, dq1=2;
+    global, dq2=2;
+    vary, name=k2sf,  step=1.0E-10 ;  
+    vary, name=k2sd,  step=1.0E-10 ;
+    jacobian,calls=20,tolerance=1.e-15,bisec=3;
+endmatch;
+
+	use, sequence=JC;
+	twiss;
+
+	value, table(summ,q1), table(summ,q2);
+
+! ******************************************** !
+	tuneToBeX = 434.3; //100 cells per arc: 232.2; //100 cells per arc: 121.2; //50 cells per arc: 70.6;
+	tuneToBeY = 431.6; //100 cells per arc: 230.8; //100 cells per arc: 120.4; //50 cells per arc: 70.2;
+// stop;
+! ******************************************** !
+
+SEQEDIT, sequence=JC_quarter;
+    flatten;
+ENDEDIT;
+SEQEDIT, sequence=JC_quarter;
+    install, element=marker_s1,    class=marker, at= 3*Lcell;
+    install, element=marker_s2,    class=marker, at= 4*Lcell;
+    install, element=marker_startArc,    class=marker, at= LSS;
+    install, element=marker_startfodo,    class=marker, at= LSS+LDS;
+ENDEDIT;
+SEQEDIT, sequence=JC_quarter;
+    flatten;
+ENDEDIT;
+
+    use, sequence = JC_quarter;
+    twiss;
+
+
+! Speed up matching -> comment for different settings
+k1qdds1 = -3.94414e-02;
+k1qdds2 = -3.84212e-02;
+k1qfds1 =  3.88858e-02;
+k1qfds2 =  3.87108e-02;
+k1qfs   =  3.96421e-02;
+k1qds   = -3.86757e-02;
+k1qdms1 = -3.80600e-02;
+k1qdms2 = -3.87924e-02;
+k1qdms3 = -3.83722e-02;
+k1qfms1 =  3.94720e-02;
+k1qfms2 =  3.88047e-02;
+
+
+match,use_macro;
+    vary, name=K1QDDS1, step=1.0E-8;
+    vary, name=K1QDDS2, step=1.0E-8;
+    vary, name=K1QFDS1, step=1.0E-8;
+    vary, name=K1QFDS2, step=1.0E-8;
+!
+    vary, name=k1qfs,   step=1.0E-8;
+    vary, name=k1qds,   step=1.0E-8;
+!
+    vary, name=K1QDMS1, step=1.0E-8;
+    vary, name=K1QDMS2, step=1.0E-8;
+    vary, name=K1QDMS3, step=1.0E-8;
+    vary, name=K1QFMS1, step=1.0E-8;
+    vary, name=K1QFMS2, step=1.0E-8;
+    // vary, name=K1QFMS3, step=1.0E-8;
+!
+calc_twiss : macro= { USE,sequence= JC_quarter; TWISS, beta0=start.arc; };
+!
+    constraint, weight=10, expr=table(summ,q1)=0.25*tuneToBeX;
+    constraint, weight=10, expr=table(summ,q2)=0.25*tuneToBeY;
+!
+    constraint, weight=10, expr=table(twiss,marker_startfodo,betx)=start.fodoa->betx;
+    constraint, weight=10, expr=table(twiss,marker_startfodo,bety)=start.fodoa->bety;
+    constraint, weight=10, expr=table(twiss,marker_startfodo,alfx)=start.fodoa->alfx;
+    constraint, weight=10, expr=table(twiss,marker_startfodo,alfy)=start.fodoa->alfy;
+    constraint, weight=10, expr=table(twiss,marker_startfodo,dx)=start.fodoa->dx;
+    constraint, weight=10, expr=table(twiss,marker_startfodo,dy)=start.fodoa->dy;
+    constraint, weight=10, expr=table(twiss,marker_startfodo,dpx)=start.fodoa->dpx;
+    constraint, weight=10, expr=table(twiss,marker_startfodo,dpy)=start.fodoa->dpy;
+!
+    constraint, weight= 1, expr=table(twiss,marker_s2,betx)-table(twiss,marker_s1,betx)=0;
+    constraint, weight= 1, expr=table(twiss,marker_s2,bety)-table(twiss,marker_s1,bety)=0;
+!
+    jacobian, calls=20, tolerance=1.0E-11, bisec=3;
+endmatch;
+!
+    twiss,beta0=start.arc;
+    twiss;
+    plot, haxis=s, vaxis1=betx, bety, vaxis2=dx, colour=100, interpolate, noversion;
+
+value, 0.25*tuneToBeX, 0.25*tuneToBeY;
+// stop;
+
+	use, sequence=JC;
+	twiss;
+
+match, sequence = JC;
+    global, q1=tuneToBeX;
+    global, q2=tuneToBeY;
+    global, dq1=2;
+    global, dq2=2;
+    vary, name=k1qfs,  step=1.0E-10 ;  
+    vary, name=k1qds,  step=1.0E-10 ;
+    vary, name=k2sf,  step=1.0E-10 ;  
+    vary, name=k2sd,  step=1.0E-10 ;
+    jacobian,calls=20,tolerance=1.e-15,bisec=3;
+endmatch;
+
+	twiss;
+    // plot, haxis=s, vaxis1=betx, bety, vaxis2=dx, colour=100, interpolate, noversion;
+    twiss, chrom;
+
+
+
+! ******************************************** !
+! Survey
+
+    select, flag = survey, clear;
+    select, flag = survey, column=name, s, keyword, s, x, y, z, theta;
+
+    survey;
+    thetaTot = table(survey,JC$END,theta);
+    value, thetaTot;
+    value, thetaTot/twopi;
+
+
+
+! ******************************************** !
+! Analytical calculation of radiation based parameters
+
+	cgamma  = 8.8460e-5;
+	cq      = 3.832e-13;
+	gammaL := ENERGY/emass;
+
+    circum := table(summ,length);
+    si1    := table(summ,synch_1);          ! CAUTION: SR integrals are calculated ONLY FOR THICK ELEMENTS !
+    si2    := table(summ,synch_2);
+    si3    := table(summ,synch_3);
+    si4    := table(summ,synch_4);
+    si5    := table(summ,synch_5);
+
+    alphadamp   := clight * cgamma/(4 * pi * circum) * ENERGY^3 * si2 *1;   ! transverse damping time, Jx=1
+    dampingtime := 1/alphadamp;
+
+    eqemit    := cq * gammaL^2/1 *si5/si2;
+    eqenergyspread := sqrt(cq * gammaL^2 * si3 /(2*si2 + si4));
+    alphamomentum := si1/circum;
+    energylossperturn = cgamma/twopi*energy^4*si2;
+    value, dampingtime,eqemit,eqenergyspread, energylossperturn;
+
+
+
+! ******************************************** !
+! Let it shine!
+
+    beam, particle = electron, energy=ENERGY, radiate;
+	switch_RF_on = 1;
+	lgrf = 0.5-asin(9.106704893/12)/twopi;
+
+	use, sequence=JC;
+	twiss;
+
+match, sequence=JC;
+    vary, name = lgrf, step=1.0E-6;
+    constraint, sequence=JC, range = #E, T=0;
+    jacobian, calls=30, tolerance=1.E-22, strategy=3;
+endmatch;
+
+	twiss;
+
+match, sequence = JC;
+    global, q1=tuneToBeX;
+    global, q2=tuneToBeY;
+    global, dq1=2;
+    global, dq2=2;
+    vary, name=k1qf,  step=1.0E-10 ;  
+    vary, name=k1qd,  step=1.0E-10 ;
+    vary, name=k2sf,  step=1.0E-10 ;  
+    vary, name=k2sd,  step=1.0E-10 ;
+    jacobian,calls=20,tolerance=1.e-15,bisec=3;
+endmatch;
+
+	twiss;
+	emit;
+
+stop;
